@@ -7,6 +7,7 @@ if($LASTEXITCODE -ne 0){throw 'Restore failed'}
 dotnet publish $project -c $Configuration -r win-x64 --self-contained true --no-restore -o $destination
 if($LASTEXITCODE -ne 0){throw 'Publish failed'}
 Copy-Item (Join-Path $PSScriptRoot 'LICENSE'),(Join-Path $PSScriptRoot 'THIRD-PARTY-NOTICES.md'),(Join-Path $PSScriptRoot 'README.md') -Destination $destination
+Copy-Item (Join-Path $PSScriptRoot 'licenses') -Destination $destination -Recurse -Force
 Get-FileHash (Join-Path $destination 'GameReplay.exe') -Algorithm SHA256 | ForEach-Object { $_.Hash.ToLowerInvariant()+'  GameReplay.exe' } | Set-Content (Join-Path $destination 'SHA256SUMS.txt')
 if($Test){
  $testRoot=Join-Path $PSScriptRoot 'artifacts\tests'
@@ -16,3 +17,4 @@ if($Test){
  }
 }
 Write-Output "Built $destination\GameReplay.exe"
+
