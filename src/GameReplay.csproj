@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <AssemblyName>GameReplay</AssemblyName><ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>1.3.0</Version><PlatformTarget>x64</PlatformTarget>
+    <PublishSingleFile>true</PublishSingleFile><IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType><InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup><PackageReference Include="NAudio" Version="2.2.1" /><PackageReference Include="System.Speech" Version="8.0.0" /></ItemGroup>
+  <!-- Retain the earlier UI source during migration; the release uses MainForm.cs. -->
+  <ItemGroup><Compile Remove="Program.cs" /></ItemGroup>
+</Project>
