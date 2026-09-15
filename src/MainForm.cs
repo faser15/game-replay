@@ -40,7 +40,7 @@ sealed class MainForm:Form
     readonly ReplayEngine engine;
     readonly GameProfiles profiles;
     AppSettings settings;
-    readonly TabControl tabs=new(){Dock=DockStyle.Fill};
+    readonly TabControl tabs=new NavigationTabs(){Dock=DockStyle.Fill};
     readonly Label status=new(),details=new(),notice=new();
     readonly ProgressBar bufferProgress=new();
     readonly Button start=new(),save=new(),session=new(),install=new();
@@ -66,15 +66,16 @@ sealed class MainForm:Form
         try{settings=JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(settingsPath))??new();}catch{settings=new();}
         engine=new ReplayEngine(root);profiles=new GameProfiles(root);
         Text="GameReplay";ClientSize=new Size(900,700);MinimumSize=new Size(820,660);StartPosition=FormStartPosition.CenterScreen;
-        BackColor=bg;ForeColor=Color.White;Font=new Font("Segoe UI",10);Icon=SystemIcons.Application;
-        var top=new Panel{Dock=DockStyle.Top,Height=82,BackColor=bg};
-        top.Controls.Add(new Label{Text="GAME REPLAY",Font=new Font("Segoe UI",22,FontStyle.Bold),ForeColor=Color.White,Bounds=new Rectangle(24,12,430,38)});
-        top.Controls.Add(new Label{Text="Record. Keep the moment. Make it yours.",ForeColor=muted,Bounds=new Rectangle(26,51,720,25)});
+        BackColor=bg;ForeColor=Color.White;Font=new Font("Segoe UI",10);Icon=BrandIcon.Shared;
+        var top=new Panel{Dock=DockStyle.Top,Height=104,BackColor=bg};
+        top.Paint+=(_,e)=>BrandIcon.Draw(e.Graphics,new Rectangle(24,22,58,58));
+        top.Controls.Add(new Label{Text="GameReplay",Font=new Font("Segoe UI",23,FontStyle.Bold),ForeColor=Color.White,Bounds=new Rectangle(98,18,430,43)});
+        top.Controls.Add(new Label{Text="Keep the moment.",ForeColor=muted,Bounds=new Rectangle(101,64,720,25)});
         notice.Dock=DockStyle.Bottom;notice.Height=40;notice.Padding=new Padding(18,8,10,0);notice.ForeColor=muted;notice.Text="720p defaults keep recording light. Clips stay on this PC.";
         Controls.Add(tabs);Controls.Add(notice);Controls.Add(top);
         BuildRecordTab();BuildSettingsTab();BuildHotkeysTab();BuildGamesTab();BuildHelpTab();LoadSettings();RefreshTargets();RefreshGames();
         var menu=new ContextMenuStrip();menu.Items.Add("Open GameReplay",null,(_,_)=>Restore());menu.Items.Add("Save clip",null,async(_,_)=>await SaveClip());menu.Items.Add("Start / stop buffer",null,async(_,_)=>await ToggleBuffer());menu.Items.Add("Library",null,(_,_)=>OpenLibrary());menu.Items.Add("Exit",null,async(_,_)=>await ExitApp());
-        tray.Icon=SystemIcons.Application;tray.Text="GameReplay — stopped";tray.ContextMenuStrip=menu;tray.Visible=!preview;tray.DoubleClick+=(_,_)=>Restore();
+        tray.Icon=BrandIcon.Shared;tray.Text="GameReplay — stopped";tray.ContextMenuStrip=menu;tray.Visible=!preview;tray.DoubleClick+=(_,_)=>Restore();
         timer.Tick+=async(_,_)=>await Tick();if(!preview)timer.Start();
         Shown+=async(_,_)=>{if(preview)return;try{ConfigureStorage();RegisterHotkeys();if(settings.StartMinimized)Hide();if(settings.RecordOnLaunch&&File.Exists(engine.Ffmpeg)&&settings.Recording.WindowHandle==0)await ToggleBuffer();}catch(Exception e){Error(e.Message);}};
         FormClosing+=async(_,e)=>{if(exiting)return;e.Cancel=true;if(engine.Running||busy||engine.Saving){Hide();tray.ShowBalloonTip(2500,"GameReplay","Recording continues in the tray. Choose Exit there to stop.",ToolTipIcon.Info);}else await ExitApp();};
@@ -104,7 +105,7 @@ sealed class MainForm:Form
     }
     void BuildSettingsTab()
     {
-        var page=Page("Recording settings");var grid=FormGrid();page.Controls.Add(grid);
+        var page=Page("Recording settings");var grid=FormGrid();page.Controls.Add(grid);Row(grid,"",new Label{Text="Stop recording before applying changes. You can review settings at any time.",AutoSize=true,MaximumSize=new Size(450,0),ForeColor=muted});
         Combo(resolution,"360p · smallest","720p · light","1080p","1440p","2160p / 4K");Combo(fps,24,30,60,120);Combo(encoder,"Auto","h264_nvenc","h264_amf","h264_qsv","libx264");Combo(bufferMode,"RAM · write footage on save","Disk · lower RAM use");
         Number(bitrate,500,30000,3000);bitrate.Increment=500;Number(duration,15,600,300);duration.Increment=15;Number(gain,0,500,100);Number(storage,1,1000,5);
         Check(systemAudio,"Record system audio");Check(micEnabled,"Record microphone");Check(denoise,"Reduce microphone noise");Check(separateTracks,"Keep system and microphone as separate tracks");Check(cursor,"Include cursor");
@@ -118,7 +119,7 @@ sealed class MainForm:Form
     }
     void BuildHotkeysTab()
     {
-        var page=Page("Hotkeys & startup");var grid=FormGrid();page.Controls.Add(grid);
+        var page=Page("Hotkeys & startup");var grid=FormGrid();page.Controls.Add(grid);Row(grid,"",new Label{Text="Stop recording before applying changes. You can review settings at any time.",AutoSize=true,MaximumSize=new Size(450,0),ForeColor=muted});
         Number(shortDuration,5,600,30);Row(grid,"Save configured replay",clipHotkey);Row(grid,"Save shorter clip",shortHotkey);Row(grid,"Short clip length (seconds)",shortDuration);Row(grid,"Start / stop session",sessionHotkey);Row(grid,"Screenshot",screenshotHotkey);Row(grid,"Session bookmark",bookmarkHotkey);
         Check(alerts,"Play a sound when saved");Check(minimized,"Start in the tray");Check(recordOnLaunch,"Start recording when the app opens");Check(voiceEnabled,"Voice clipping: say 'clip that' (uses microphone)");Check(autoGames,"Automatically record enabled game profiles");
         Check(loginStartup,"Launch when I sign in to Windows");Row(grid,"Feedback",alerts);Row(grid,"Window",minimized);Row(grid,"Windows startup",loginStartup);Row(grid,"Recording on launch",recordOnLaunch);Row(grid,"Voice",voiceEnabled);Row(grid,"Game detection",autoGames);Row(grid,"",Button("Apply hotkeys & startup",(_,_)=>ApplySettings(),true));Row(grid,"Hotkey format",new Label{Text="Examples: Ctrl+Shift+F8, Alt+F9. Voice needs an English Windows speech recognizer.",AutoSize=true,MaximumSize=new Size(450,0),ForeColor=muted});
@@ -135,7 +136,7 @@ sealed class MainForm:Form
     void BuildHelpTab()
     {
         var page=Page("About & help");var flow=new FlowLayoutPanel{Dock=DockStyle.Top,AutoSize=true,FlowDirection=FlowDirection.TopDown,WrapContents=false};page.Controls.Add(flow);
-        flow.Controls.Add(new Label{Text="GameReplay 1.3\nAn independent, local-first Windows recorder and clip editor.\n\nDefaults: 720p, 30 FPS, GPU H.264, five-minute RAM replay.\nThe first setup downloads a checksum-verified FFmpeg engine (~106 MiB).\nRecordings are local. This app does not upload clips or require an account.\n\nUse the library to organize, trim, crop, add text, and export MP4/GIF.\nFull sessions stop at your storage limit. Save a test clip before important gameplay.\n\nHDR, exclusive fullscreen, and anti-cheat behavior vary by game.\nVoice recognition, webcam, and microphone depend on devices installed on this PC.",AutoSize=true,MaximumSize=new Size(790,0),ForeColor=muted,Margin=new Padding(0,8,0,24)});
+        flow.Controls.Add(new Label{Text="GameReplay 1.3.1\nAn independent, local-first Windows recorder and clip editor.\n\nDefaults: 720p, 30 FPS, GPU H.264, five-minute RAM replay.\nThe first setup downloads a checksum-verified FFmpeg engine (~106 MiB).\nRecordings are local. This app does not upload clips or require an account.\n\nUse the library to organize, trim, crop, add text, and export MP4/GIF.\nFull sessions stop at your storage limit. Save a test clip before important gameplay.\n\nHDR, exclusive fullscreen, and anti-cheat behavior vary by game.\nVoice recognition, webcam, and microphone depend on devices installed on this PC.",AutoSize=true,MaximumSize=new Size(790,0),ForeColor=muted,Margin=new Padding(0,8,0,24)});
         flow.Controls.Add(Button("Project & releases",(_,_)=>Open("https://github.com/faser15/game-replay")));flow.Controls.Add(Button("Open diagnostics",(_,_)=>Diagnostics()));flow.Controls.Add(Button("Open clips folder",(_,_)=>Open(engine.Clips)));flow.Controls.Add(Button("Recording engine setup",async(_,_)=>await InstallEngine()));
     }
     void LoadSettings()
@@ -187,7 +188,7 @@ sealed class MainForm:Form
         if(previous?.Handle!=0&&previous!=null)for(int i=0;i<target.Items.Count;i++)if(target.Items[i] is CaptureChoice choice&&choice.Handle==previous.Handle&&choice.Label==previous.Label)target.SelectedIndex=i;
         if(previous==null&&settings.Recording.WindowHandle!=0)notice.Text="Select your game's current window before recording; saved window handles are not reused.";
     }
-    void UpdateControls(){bool ready=File.Exists(engine.Ffmpeg);start.Enabled=session.Enabled=ready&&!busy&&!engine.Saving;save.Enabled=ready&&!busy&&!engine.Saving&&!engine.SessionRunning&&engine.BufferedSegments>0;target.Enabled=!busy&&!engine.Running;start.Text=engine.Running&&!engine.SessionRunning?"Stop buffer":"Start buffer";session.Text=engine.SessionRunning?"Stop & save session":"Start full session";save.Text="Save last "+(settings.Recording.ClipSeconds>=60?settings.Recording.ClipSeconds/60+" min":settings.Recording.ClipSeconds+" sec");install.Visible=!ready;install.Enabled=!busy;tabs.TabPages[1].Enabled=tabs.TabPages[2].Enabled=!busy&&!engine.Running&&!engine.Saving;tray.Text=engine.Running?"GameReplay — recording":"GameReplay — stopped";}
+    void UpdateControls(){bool ready=File.Exists(engine.Ffmpeg);start.Enabled=session.Enabled=ready&&!busy&&!engine.Saving;save.Enabled=ready&&!busy&&!engine.Saving&&!engine.SessionRunning&&engine.BufferedSegments>0;target.Enabled=!busy&&!engine.Running;start.Text=engine.Running&&!engine.SessionRunning?"Stop buffer":"Start buffer";session.Text=engine.SessionRunning?"Stop & save session":"Start full session";save.Text="Save last "+(settings.Recording.ClipSeconds>=60?settings.Recording.ClipSeconds/60+" min":settings.Recording.ClipSeconds+" sec");install.Visible=!ready;install.Enabled=!busy;tray.Text=engine.Running?"GameReplay — recording":"GameReplay — stopped";}
     async Task ToggleBuffer()
     {
         if(busy||engine.Saving)return;if(engine.SessionRunning){Error("Stop and save the full session first.");return;}
@@ -273,8 +274,33 @@ sealed class MainForm:Form
             using var bitmap=new Bitmap(Width,Height);DrawToBitmap(bitmap,new Rectangle(0,0,Width,Height));bitmap.Save(Path.Combine(directory,i==0?"ui.png":"ui-tab-"+i+".png"));
             var page=tabs.TabPages[i];if(page.VerticalScroll.Visible){page.AutoScrollPosition=new Point(0,page.VerticalScroll.Maximum);Application.DoEvents();using var bottom=new Bitmap(Width,Height);DrawToBitmap(bottom,new Rectangle(0,0,Width,Height));bottom.Save(Path.Combine(directory,"ui-tab-"+i+"-bottom.png"));}
         }
-        tabs.SelectedIndex=0;
+        busy=true;UpdateControls();tabs.SelectedIndex=2;tabs.TabPages[2].AutoScrollPosition=Point.Empty;Application.DoEvents();
+        using(var locked=new Bitmap(Width,Height)){DrawToBitmap(locked,new Rectangle(0,0,Width,Height));locked.Save(Path.Combine(directory,"ui-settings-locked.png"));}
+        busy=false;UpdateControls();tabs.SelectedIndex=0;
     }
     protected override void WndProc(ref Message m){if(m.Msg==0x0312){switch(m.WParam.ToInt32()){case 1:_=SaveClip();break;case 2:_=SaveClip(settings.ShortClipSeconds);break;case 3:_=ToggleSession();break;case 4:Screenshot();break;case 5:Bookmark();break;}}base.WndProc(ref m);}
     protected override void Dispose(bool disposing){if(disposing){timer.Dispose();tray.Dispose();voice?.Dispose();engine.Dispose();}base.Dispose(disposing);}
+}
+
+// Keep the standard tab keyboard/accessibility behavior while painting a coherent dark header.
+sealed class NavigationTabs:TabControl
+{
+    static readonly Color Background=Color.FromArgb(17,23,34),SelectedBackground=Color.FromArgb(26,35,49),Accent=Color.FromArgb(71,215,161),Muted=Color.FromArgb(180,191,207);
+    public NavigationTabs()
+    {
+        SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw,true);
+        DrawMode=TabDrawMode.OwnerDrawFixed;SizeMode=TabSizeMode.Fixed;ItemSize=new Size(155,44);Padding=new Point(12,8);
+    }
+    protected override void OnSelectedIndexChanged(EventArgs e){base.OnSelectedIndexChanged(e);Invalidate();}
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.Clear(Background);
+        using var selectedBrush=new SolidBrush(SelectedBackground);using var accentBrush=new SolidBrush(Accent);
+        for(int i=0;i<TabCount;i++){
+            var rect=GetTabRect(i);bool active=i==SelectedIndex;
+            if(active){e.Graphics.FillRectangle(selectedBrush,rect);e.Graphics.FillRectangle(accentBrush,rect.Left+14,rect.Bottom-3,rect.Width-28,3);}
+            TextRenderer.DrawText(e.Graphics,TabPages[i].Text,Font,rect,active?Color.White:Muted,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.SingleLine|TextFormatFlags.NoPrefix);
+            if(active&&Focused&&ShowFocusCues)ControlPaint.DrawFocusRectangle(e.Graphics,Rectangle.Inflate(rect,-6,-6),Color.White,SelectedBackground);
+        }
+    }
 }

@@ -12,3 +12,7 @@ Verified on Windows with NVIDIA hardware on 2026-09-15:
 - Desktop helper checks cover hotkeys, profiles and bookmarks. All settings tabs were rendered and inspected.
 
 Microphone, webcam, voice recognition and particular game compatibility have not been validated on physical devices. The live integration test intentionally captures only its own synthetic window and disables audio. CI runs synthetic recording and editor checks; live GPU capture requires an interactive desktop.
+
+## 1.3.1 UI update
+
+The settings tabs remain enabled while recording; ApplySettings retains its busy/running/saving guard before any settings writes. UI rendering covers every tab and the busy state that previously caused illegible disabled text. Recording and media code is unchanged in this patch.
